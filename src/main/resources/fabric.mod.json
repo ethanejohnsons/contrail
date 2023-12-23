@@ -1,0 +1,17 @@
+{
+	"schemaVersion": 1,
+	"id": "contrail",
+	"version": "${version}",
+	"name": "Contrail",
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"client": [ "dev.bluevista.contrail.ContrailMod" ],
+		"modmenu": [ "dev.bluevista.contrail.compat.ModMenuCompat" ]
+	},
+	"depends": {
+		"minecraft": "1.20.4",
+		"fabricloader": "*",
+		"fabric": "*"
+	}
+}

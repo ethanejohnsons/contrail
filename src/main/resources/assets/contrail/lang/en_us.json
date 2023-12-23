@@ -1,0 +1,13 @@
+{
+	"text.autoconfig.contrail.title": "Contrail Config",
+
+	"text.autoconfig.contrail.option.enabled": "Contrails Enabled",
+	"text.autoconfig.contrail.option.maxTrailCount": "Max Contrail Count",
+	"text.autoconfig.contrail.option.trailChance": "Contrail Chance",
+	"text.autoconfig.contrail.option.length": "Contrail Length",
+	"text.autoconfig.contrail.option.speed": "Contrail Speed",
+	"text.autoconfig.contrail.option.height": "Contrail Height",
+	"text.autoconfig.contrail.option.thickness": "Contrail Thickness",
+
+	"text.autoconfig.contrail.option.trailChance.@Tooltip": "The percent chance that a contrail will spawn. This is checked once per second."
+}
