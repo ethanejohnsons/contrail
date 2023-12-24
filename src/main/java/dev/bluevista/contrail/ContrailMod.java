@@ -8,6 +8,7 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import org.apache.logging.log4j.LogManager;
@@ -21,7 +22,11 @@ public class ContrailMod implements ClientModInitializer {
 
 	public static final String MODID = "contrail";
 	public static final Logger LOGGER = LogManager.getLogger("Contrail");
-	private static final List<Contrail> trails = new ArrayList<>();
+	public static final List<Contrail> CONTRAILS = new ArrayList<>();
+
+	public static boolean isDev() {
+		return FabricLoader.getInstance().isDevelopmentEnvironment();
+	}
 
 	@Override
 	public void onInitializeClient() {
@@ -36,40 +41,31 @@ public class ContrailMod implements ClientModInitializer {
 	}
 
 	private void onWorldTick(ClientWorld world) {
+		var client = MinecraftClient.getInstance();
 		var config = ContrailConfig.getInstance();
 
-		if (!config.enabled) {
-			trails.clear();
+		// if contrails are disabled, or the max number of contrails was decreased, clear all contrails
+		if (!config.enabled || config.maxTrailCount < CONTRAILS.size()) {
+			CONTRAILS.clear();
 			return;
 		}
 
-		if (config.maxTrailCount < trails.size()) {
-			for (int i = 0; i < trails.size() - config.maxTrailCount; i++) {
-				trails.remove(i);
-			}
-		}
-
+		// try to spawn a new contrail
 		if (
-			MinecraftClient.getInstance().player.age % 20 == 0 &&
-			trails.size() < config.maxTrailCount &&
+			client.player != null &&
+			client.player.age % 20 == 0 &&
+			CONTRAILS.size() < config.maxTrailCount &&
 			world.getRandom().nextDouble() <= config.trailChance * 0.01f
 		) {
-			trails.add(new Contrail());
+			CONTRAILS.add(new Contrail());
 		}
 
-		int viewDistance = MinecraftClient.getInstance().options.getClampedViewDistance() * 16 * 2;
-
-		for (var trail : List.copyOf(trails)) {
-			if (trail.getHorizontalDistanceFromPlayer() > config.length + viewDistance) {
-				trails.remove(trail);
-			} else {
-				trail.tick();
-			}
-		}
+		// copy to avoid concurrency problems
+		List.copyOf(CONTRAILS).forEach(Contrail::tick);
 	}
 
 	private void onWorldRender(WorldRenderContext ctx) {
-		trails.forEach(trail -> trail.render(ctx));
+		CONTRAILS.forEach(trail -> trail.render(ctx));
 	}
 
 }
