@@ -6,6 +6,7 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
@@ -28,6 +29,9 @@ public class Contrail {
 	private Vec2f prevPosition;
 	private double length;
 	private double prevLength;
+	private float alpha;
+	private float prevAlpha;
+	private boolean blink;
 
 	public Contrail() {
 		this.position = getRandomOrigin();
@@ -38,15 +42,22 @@ public class Contrail {
 		}
 	}
 
-	public void tick() {
+	public void tick(ClientWorld world) {
+		var client = MinecraftClient.getInstance();
 		var config = ContrailConfig.getInstance();
 
 		// check if this contrail is out of range, and if so, remove it
-		int viewDistance = MinecraftClient.getInstance().options.getClampedViewDistance() * 16 * 2;
+		int viewDistance = client.options.getClampedViewDistance() * 16 * 2;
 		if (getHorizontalDistanceFromPlayer() > config.length + viewDistance) {
 			ContrailMod.CONTRAILS.remove(this);
+			if (ContrailMod.isDev()) {
+				ContrailMod.LOGGER.info(String.format("Removed contrail at (%f, %f).", position.x, position.y));
+			}
 			return;
 		}
+
+		long time = world.getTimeOfDay();
+		boolean isNight = time >= 13_000 && time <= 23_000;
 
 		// update interpolation values for position
 		prevPosition = position;
@@ -54,34 +65,43 @@ public class Contrail {
 
 		// update interpolation values for length
 		prevLength = length;
-		length = Math.min(config.length, length + config.speed * 0.01);
+		if (isNight) {
+			length = Math.max(config.thickness * 0.1f * 1.001f, length - config.speed * 0.02f);
+		} else {
+			length = Math.min(config.length, length + config.speed * 0.01);
+		}
+
+		// update interpolation values for alpha
+		prevAlpha = alpha;
+		alpha = blink && length <= 2.0 && getHorizontalDistanceFromPlayer() < 256 ? 1.0f : isNight ? 0.25f : (1.0f - (1.0f / (float) length)) * 0.75f;
+
+		if (client.player == null) return; // just in case :P
+		if (client.player.age % 20 == 0) {
+			blink = !blink;
+		}
 	}
 
 	public void render(WorldRenderContext ctx) {
-		var config = ContrailConfig.getInstance();
 		if (ctx.world() == null) return; // just in case :P
-		if (ctx.world().getDimensionEffects().getSkyType() != DimensionEffects.SkyType.NORMAL) return;
+		if (ctx.world().getDimensionEffects().getSkyType() != DimensionEffects.SkyType.NORMAL) return; // only do this in the overworld
 
-		RenderSystem.enableBlend();
-		RenderSystem.setShader(GameRenderer::getPositionTexProgram);
-		RenderSystem.setShaderTexture(0, TEXTURE);
+		var config = ContrailConfig.getInstance();
 
 		// interpolated values
 		var position = new Vec2f(MathHelper.lerp(ctx.tickDelta(), prevPosition.x, this.position.x), MathHelper.lerp(ctx.tickDelta(), prevPosition.y, this.position.y));
 		double length = MathHelper.lerp(ctx.tickDelta(), prevLength, this.length);
+		float alpha = MathHelper.lerp(ctx.tickDelta(), prevAlpha, this.alpha);
 
-		double increment = 20.0;
-		long time = ctx.world().getTimeOfDay();
-		float timeFactor = MathHelper.clamp(Math.abs(18000 - time) / 18000f, 0.25f, 0.75f);
-
+		RenderSystem.enableBlend();
+		RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+		RenderSystem.setShaderTexture(0, TEXTURE);
 		ctx.matrixStack().push();
 		ctx.matrixStack().translate(position.x - ctx.camera().getPos().x, config.height - ctx.camera().getPos().y, position.y - ctx.camera().getPos().z);
 
 		var buffer = Tessellator.getInstance().getBuffer();
 
-		for (double i = 0.0; i < length; i += increment) {
-			float alpha = (1.0f - (1.0f / (float) length) * (float) i) * timeFactor;
-			RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
+		for (double i = 0.0; i < length; i += config.thickness * 0.1f) {
+			RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha * (1.0f - ((float) i / (float) length)));
 
 			ctx.matrixStack().push();
 			ctx.matrixStack().translate(direction.x * i, 0.0, direction.y * i); // contrail moves in negative direction, so we extend the tail in the positive direction
@@ -93,8 +113,8 @@ public class Contrail {
 			buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
 			buffer.vertex(pos, 0.0f, 0.0f, 0.0f).texture(0, 0).next();
 			buffer.vertex(pos, 0.0f, 0.0f, (float) config.thickness * 0.1f).texture(0, 1).next();
-			buffer.vertex(pos, (float) increment, 0.0f, (float) config.thickness * 0.1f).texture(1, 1).next();
-			buffer.vertex(pos, (float) increment, 0.0f, 0.0f).texture(1, 0).next();
+			buffer.vertex(pos, (float) config.thickness * 0.1f, 0.0f, (float) config.thickness * 0.1f).texture(1, 1).next();
+			buffer.vertex(pos, (float) config.thickness * 0.1f, 0.0f, 0.0f).texture(1, 0).next();
 
 			Tessellator.getInstance().draw();
 			ctx.matrixStack().pop();

@@ -47,6 +47,7 @@ public class ContrailMod implements ClientModInitializer {
 		// if contrails are disabled, or the max number of contrails was decreased, clear all contrails
 		if (!config.enabled || config.maxTrailCount < CONTRAILS.size()) {
 			CONTRAILS.clear();
+			if (isDev()) LOGGER.info("All contrails have been cleared.");
 			return;
 		}
 
@@ -61,7 +62,7 @@ public class ContrailMod implements ClientModInitializer {
 		}
 
 		// copy to avoid concurrency problems
-		List.copyOf(CONTRAILS).forEach(Contrail::tick);
+		List.copyOf(CONTRAILS).forEach(contrail -> contrail.tick(world));
 	}
 
 	private void onWorldRender(WorldRenderContext ctx) {
