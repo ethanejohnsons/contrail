@@ -31,7 +31,6 @@ public class Contrail {
 	private double prevLength;
 	private float alpha;
 	private float prevAlpha;
-	private boolean blink;
 
 	public Contrail() {
 		this.position = getRandomOrigin();
@@ -73,17 +72,11 @@ public class Contrail {
 
 		// update interpolation values for alpha
 		prevAlpha = alpha;
-		alpha = blink && length <= 2.0 && getHorizontalDistanceFromPlayer() < 256 ? 1.0f : isNight ? 0.25f : (1.0f - (1.0f / (float) length)) * 0.75f;
-
-		if (client.player == null) return; // just in case :P
-		if (client.player.age % 20 == 0) {
-			blink = !blink;
-		}
+		alpha = isNight ? 0.25f : (1.0f - (1.0f / (float) length)) * 0.75f;
 	}
 
 	public void render(WorldRenderContext ctx) {
 		if (ctx.world() == null) return; // just in case :P
-		if (ctx.world().getDimensionEffects().getSkyType() != DimensionEffects.SkyType.NORMAL) return; // only do this in the overworld
 
 		var config = ContrailConfig.getInstance();
 

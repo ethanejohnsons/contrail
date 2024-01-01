@@ -45,7 +45,7 @@ public class ContrailMod implements ClientModInitializer {
 		var config = ContrailConfig.getInstance();
 
 		// if contrails are disabled, or the max number of contrails was decreased, clear all contrails
-		if (!config.enabled || config.maxTrailCount < CONTRAILS.size()) {
+		if (!config.enabled || config.maxTrailCount < CONTRAILS.size() || world.getRegistryKey() != ClientWorld.OVERWORLD) {
 			CONTRAILS.clear();
 			if (isDev()) LOGGER.info("All contrails have been cleared.");
 			return;
